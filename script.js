@@ -147,10 +147,32 @@ function saveToHistory(sourceText, translatedText, sourceLang, targetLang) {
 }
 
 // Hàm cập nhật giao diện lịch sử
+// Khởi tạo trạng thái hiển thị lịch sử từ localStorage
+let isHistoryVisible = localStorage.getItem('isHistoryVisible') === 'true';
+
+// Cập nhật hiển thị lịch sử ban đầu
+const historyToggleBtn = document.getElementById('toggleHistory');
+if (isHistoryVisible) {
+    historyToggleBtn.classList.add('active');
+}
+
+// Xử lý sự kiện click nút bật/tắt lịch sử
+historyToggleBtn.addEventListener('click', () => {
+    isHistoryVisible = !isHistoryVisible;
+    historyToggleBtn.classList.toggle('active');
+    localStorage.setItem('isHistoryVisible', isHistoryVisible);
+    updateHistoryUI();
+});
+
+// Cập nhật hàm updateHistoryUI để xử lý ẩn/hiện
 function updateHistoryUI() {
     const historyContainer = document.getElementById('historyContainer');
+    const isHistoryVisible = localStorage.getItem('isHistoryVisible') === 'true';
+    const historyToggleBtn = document.getElementById('toggleHistory');
+    historyToggleBtn.classList.toggle('active', isHistoryVisible);
+    
     if (!historyContainer) {
-        // Tạo container cho lịch sử dịch
+        // Tạo container cho lịch sử dịch nếu chưa tồn tại
         const container = document.createElement('div');
         container.id = 'historyContainer';
         container.style.marginTop = '20px';
@@ -158,6 +180,8 @@ function updateHistoryUI() {
         container.style.background = 'rgba(255, 255, 255, 0.95)';
         container.style.borderRadius = '8px';
         container.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        container.style.display = isHistoryVisible ? 'block' : 'none';
+        container.style.transition = 'all 0.3s ease';
 
         // Thêm tiêu đề
         const title = document.createElement('h3');
@@ -173,36 +197,42 @@ function updateHistoryUI() {
 
         // Thêm container vào trang
         document.querySelector('.container').appendChild(container);
+    } else {
+        historyContainer.style.display = isHistoryVisible ? 'block' : 'none';
     }
 
     // Cập nhật danh sách lịch sử
-    const historyList = document.getElementById('historyList');
-    historyList.innerHTML = '';
+    if (isHistoryVisible) {
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = '';
 
-    translationHistory.forEach((item, index) => {
-        const historyItem = document.createElement('div');
-        historyItem.className = 'history-item';
-        historyItem.style.padding = '10px';
-        historyItem.style.marginBottom = '10px';
-        historyItem.style.borderBottom = '1px solid #eee';
-        historyItem.style.cursor = 'pointer';
+        translationHistory.forEach((item, index) => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            historyItem.style.padding = '10px';
+            historyItem.style.marginBottom = '10px';
+            historyItem.style.borderBottom = '1px solid #eee';
+            historyItem.style.cursor = 'pointer';
 
-        historyItem.innerHTML = `
-            <div style="color: #666; font-size: 0.9em; margin-bottom: 5px">${item.timestamp}</div>
-            <div style="margin-bottom: 5px"><strong>Văn bản gốc:</strong> ${item.sourceText.substring(0, 50)}${item.sourceText.length > 50 ? '...' : ''}</div>
-            <div><strong>Bản dịch:</strong> ${item.translatedText.substring(0, 50)}${item.translatedText.length > 50 ? '...' : ''}</div>
-        `;
+            historyItem.innerHTML = `
+                <div style="color: #666; font-size: 0.9em; margin-bottom: 5px">${item.timestamp}</div>
+                <div style="margin-bottom: 5px"><strong>Văn bản gốc:</strong> ${item.sourceText.substring(0, 50)}${item.sourceText.length > 50 ? '...' : ''}</div>
+                <div><strong>Bản dịch:</strong> ${item.translatedText.substring(0, 50)}${item.translatedText.length > 50 ? '...' : ''}</div>
+            `;
 
-        // Thêm sự kiện click để tải lại bản dịch
-        historyItem.onclick = () => {
-            document.getElementById('sourceText').value = item.sourceText;
-            document.getElementById('sourceLanguage').value = item.sourceLang;
-            document.getElementById('targetLanguage').value = item.targetLang;
-            translateText();
-        };
+            // Thêm sự kiện click để hiển thị lại bản dịch từ lịch sử
+            historyItem.onclick = () => {
+                const sourceTextArea = document.getElementById('sourceText');
+                const translatedTextArea = document.getElementById('translatedText');
+                sourceTextArea.value = item.sourceText;
+                document.getElementById('sourceLanguage').value = item.sourceLang;
+                document.getElementById('targetLanguage').value = item.targetLang;
+                translatedTextArea.value = item.translatedText;
+            };
 
-        historyList.appendChild(historyItem);
-    });
+            historyList.appendChild(historyItem);
+        });
+    }
 }
 
 // Cập nhật hàm translateText để lưu lịch sử
@@ -368,55 +398,3 @@ function showNotification(message, type) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
-
-// Thêm nút sao chép và phát âm cho kết quả dịch văn bản từ ảnh
-const translatedImageTextArea = document.getElementById('translatedImageText');
-const imageButtonContainer = translatedImageTextArea.parentElement;
-
-// Tạo nút sao chép cho kết quả dịch ảnh
-const imageCopyButton = document.createElement('button');
-imageCopyButton.innerHTML = '<i class="fas fa-copy"></i>';
-imageCopyButton.className = 'action-button';
-imageCopyButton.title = 'Sao chép';
-imageCopyButton.style.position = 'absolute';
-imageCopyButton.style.right = '10px';
-imageCopyButton.style.top = '10px';
-imageCopyButton.style.padding = '5px';
-imageCopyButton.style.background = 'none';
-imageCopyButton.style.border = 'none';
-imageCopyButton.style.cursor = 'pointer';
-imageCopyButton.style.color = '#666';
-imageCopyButton.onclick = async () => {
-    try {
-        await navigator.clipboard.writeText(translatedImageTextArea.value);
-        showNotification('Đã sao chép vào clipboard!', 'success');
-    } catch (err) {
-        showNotification('Không thể sao chép văn bản!', 'error');
-    }
-};
-
-// Tạo nút phát âm cho kết quả dịch ảnh
-const imageSpeakButton = document.createElement('button');
-imageSpeakButton.innerHTML = '<i class="fas fa-volume-up"></i>';
-imageSpeakButton.className = 'action-button';
-imageSpeakButton.title = 'Phát âm';
-imageSpeakButton.style.position = 'absolute';
-imageSpeakButton.style.right = '40px';
-imageSpeakButton.style.top = '10px';
-imageSpeakButton.style.padding = '5px';
-imageSpeakButton.style.background = 'none';
-imageSpeakButton.style.border = 'none';
-imageSpeakButton.style.cursor = 'pointer';
-imageSpeakButton.style.color = '#666';
-imageSpeakButton.onclick = () => {
-    const text = translatedImageTextArea.value;
-    if (text) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = document.getElementById('imageTargetLanguage').value;
-        window.speechSynthesis.speak(utterance);
-    }
-};
-
-// Thêm các nút vào container
-imageButtonContainer.appendChild(imageCopyButton);
-imageButtonContainer.appendChild(imageSpeakButton);
